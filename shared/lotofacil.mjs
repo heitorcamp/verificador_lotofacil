@@ -1,4 +1,5 @@
-const upstreamBaseUrl = 'https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil'
+const officialBaseUrl = 'https://servicebus2.caixa.gov.br/portaldeloterias/api/lotofacil'
+const fallbackBaseUrl = 'https://lottolookup.com.br/api/lotofacil'
 
 function toNumber(value) {
   return Number.parseInt(String(value), 10)
@@ -32,9 +33,7 @@ function normalizeResult(payload) {
   }
 }
 
-export async function fetchLotofacilResult(contestNumber) {
-  const url = contestNumber ? `${upstreamBaseUrl}/${contestNumber}` : upstreamBaseUrl
-
+async function fetchJson(url) {
   const response = await fetch(url, {
     headers: {
       Accept: 'application/json, text/plain, */*',
@@ -44,9 +43,43 @@ export async function fetchLotofacilResult(contestNumber) {
     signal: AbortSignal.timeout(10000),
   })
 
-  if (!response.ok) {
-    throw new Error(`A API da Caixa respondeu com status ${response.status}.`)
+  return response
+}
+
+function buildOfficialUrl(contestNumber) {
+  return contestNumber ? `${officialBaseUrl}/${contestNumber}` : officialBaseUrl
+}
+
+function buildFallbackUrl(contestNumber) {
+  return contestNumber ? `${fallbackBaseUrl}/${contestNumber}` : `${fallbackBaseUrl}/latest`
+}
+
+export async function fetchLotofacilResult(contestNumber) {
+  const officialResponse = await fetchJson(buildOfficialUrl(contestNumber)).catch(
+    () => null,
+  )
+
+  if (officialResponse?.ok) {
+    return normalizeResult(await officialResponse.json())
   }
 
-  return normalizeResult(await response.json())
+  const shouldTryFallback =
+    officialResponse === null ||
+    officialResponse.status === 401 ||
+    officialResponse.status === 403 ||
+    officialResponse.status >= 500
+
+  if (shouldTryFallback) {
+    const fallbackResponse = await fetchJson(buildFallbackUrl(contestNumber))
+
+    if (!fallbackResponse.ok) {
+      throw new Error(
+        `A API alternativa respondeu com status ${fallbackResponse.status}.`,
+      )
+    }
+
+    return normalizeResult(await fallbackResponse.json())
+  }
+
+  throw new Error(`A API da Caixa respondeu com status ${officialResponse.status}.`)
 }
