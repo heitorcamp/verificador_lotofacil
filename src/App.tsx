@@ -34,6 +34,8 @@ type LotofacilResult = {
   totalCollected: number
   prizeTiers: PrizeTier[]
   checkedAt: string
+  dataSource?: 'caixa-oficial' | 'lottolookup' | 'github-raw' | 'resultado-completo'
+  hasDetailedStats?: boolean
 }
 
 type Checkpoint = {
@@ -199,6 +201,61 @@ function formatDateTime(value: string) {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function getDisplayDate(value: string, fallback = 'Indisponivel') {
+  return value ? formatDate(value) : fallback
+}
+
+function getSourceLabel(result: LotofacilResult | null) {
+  if (result?.dataSource === 'caixa-oficial') {
+    return 'CAIXA oficial'
+  }
+
+  if (result?.dataSource === 'lottolookup') {
+    return 'LottoLookup'
+  }
+
+  if (result?.dataSource === 'github-raw') {
+    return 'GitHub raw'
+  }
+
+  return 'Fonte de resultados'
+}
+
+function getStatsValue(
+  result: LotofacilResult,
+  kind: 'accumulated' | 'estimated' | 'collected',
+) {
+  if (result.hasDetailedStats === false) {
+    return 'Indisponivel'
+  }
+
+  if (kind === 'accumulated') {
+    return result.accumulated ? 'Sim' : 'Nao'
+  }
+
+  if (kind === 'estimated') {
+    return formatCurrency(result.estimatedNextPrize)
+  }
+
+  return formatCurrency(result.totalCollected)
+}
+
+function getStatsNote(result: LotofacilResult, kind: 'accumulated' | 'estimated' | 'collected') {
+  if (result.hasDetailedStats === false) {
+    return `Este detalhe nao veio na fonte ${getSourceLabel(result)}.`
+  }
+
+  if (kind === 'accumulated') {
+    return `Estimativa ${formatCurrency(result.estimatedNextPrize)}`
+  }
+
+  if (kind === 'estimated') {
+    return `Fonte ${getSourceLabel(result)}`
+  }
+
+  return `Atualizado em ${formatDateTime(result.checkedAt)}`
 }
 
 function getPrizeHeadline(prizeTier: PrizeTier | null, validGame: boolean) {
@@ -621,9 +678,10 @@ export default function App() {
           </p>
           <p>
             {result
-              ? `Concurso ${result.contestNumber} apurado em ${formatDate(result.drawDate)}`
+              ? `Concurso ${result.contestNumber} apurado em ${getDisplayDate(result.drawDate)}`
               : 'Buscando o concurso selecionado...'}
           </p>
+          {result ? <p>Fonte atual: {getSourceLabel(result)}</p> : null}
         </div>
       </section>
 
@@ -825,11 +883,11 @@ export default function App() {
                 </div>
                 <div>
                   <span>Data</span>
-                  <strong>{formatDate(result.drawDate)}</strong>
+                  <strong>{getDisplayDate(result.drawDate)}</strong>
                 </div>
                 <div>
                   <span>Proximo</span>
-                  <strong>{formatDate(result.nextContestDate)}</strong>
+                  <strong>{getDisplayDate(result.nextContestDate)}</strong>
                 </div>
               </div>
 
@@ -956,18 +1014,23 @@ export default function App() {
               <div className="stats-strip">
                 <div>
                   <span>Local</span>
-                  <strong>{result.drawLocation}</strong>
-                  <small>{result.drawCity}</small>
+                  <strong>{result.drawLocation || 'Indisponivel'}</strong>
+                  <small>{result.drawCity || `Fonte ${getSourceLabel(result)}`}</small>
                 </div>
                 <div>
                   <span>Acumulou</span>
-                  <strong>{result.accumulated ? 'Sim' : 'Nao'}</strong>
-                  <small>Estimativa {formatCurrency(result.estimatedNextPrize)}</small>
+                  <strong>{getStatsValue(result, 'accumulated')}</strong>
+                  <small>{getStatsNote(result, 'accumulated')}</small>
+                </div>
+                <div>
+                  <span>Proximo premio</span>
+                  <strong>{getStatsValue(result, 'estimated')}</strong>
+                  <small>{getStatsNote(result, 'estimated')}</small>
                 </div>
                 <div>
                   <span>Arrecadacao</span>
-                  <strong>{formatCurrency(result.totalCollected)}</strong>
-                  <small>Atualizado em {formatDateTime(result.checkedAt)}</small>
+                  <strong>{getStatsValue(result, 'collected')}</strong>
+                  <small>{getStatsNote(result, 'collected')}</small>
                 </div>
               </div>
             </>

@@ -407,6 +407,10 @@ h4 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.stats-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .game-summary {
   padding: 16px 18px;
   margin-bottom: 24px;

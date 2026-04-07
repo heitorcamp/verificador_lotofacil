@@ -26,6 +26,8 @@ function normalizeResult(payload) {
     estimatedNextPrize: payload.valorEstimadoProximoConcurso ?? 0,
     totalCollected: payload.valorArrecadado ?? 0,
     checkedAt: new Date().toISOString(),
+    dataSource: 'resultado-completo',
+    hasDetailedStats: true,
     prizeTiers: (payload.listaRateioPremio ?? []).map((tier) => ({
       description: tier.descricaoFaixa,
       hits: extractHitCount(tier.descricaoFaixa),
@@ -99,6 +101,8 @@ function normalizeGithubResult(drawMap, requestedContestNumber) {
     estimatedNextPrize: 0,
     totalCollected: 0,
     checkedAt: new Date().toISOString(),
+    dataSource: 'github-raw',
+    hasDetailedStats: false,
     prizeTiers: [],
   }
 }
@@ -112,7 +116,10 @@ export async function fetchLotofacilResult(contestNumber) {
   })
 
   if (officialResponse?.ok) {
-    return normalizeResult(await officialResponse.json())
+    return {
+      ...normalizeResult(await officialResponse.json()),
+      dataSource: 'caixa-oficial',
+    }
   }
 
   if (officialResponse && !officialResponse.ok) {
@@ -134,7 +141,10 @@ export async function fetchLotofacilResult(contestNumber) {
     )
 
     if (fallbackResponse?.ok) {
-      return normalizeResult(await fallbackResponse.json())
+      return {
+        ...normalizeResult(await fallbackResponse.json()),
+        dataSource: 'lottolookup',
+      }
     }
 
     if (fallbackResponse && !fallbackResponse.ok) {
