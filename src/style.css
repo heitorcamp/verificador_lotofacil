@@ -223,6 +223,18 @@ h4 {
   margin-bottom: 24px;
 }
 
+.mobile-only {
+  display: none;
+}
+
+.mobile-only-card {
+  display: none;
+}
+
+.desktop-only-action {
+  display: inline-flex;
+}
+
 .ghost-button,
 .primary-button {
   border: 1px solid var(--line);
@@ -301,6 +313,12 @@ h4 {
   background: rgba(255, 255, 255, 0.6);
 }
 
+.add-game-card {
+  border-style: dashed;
+  background:
+    linear-gradient(180deg, rgba(23, 161, 90, 0.08) 0%, rgba(255, 255, 255, 0.72) 100%);
+}
+
 .game-card.active,
 .summary-card.active {
   border-color: rgba(11, 143, 77, 0.34);
@@ -321,6 +339,23 @@ h4 {
 .editor-card {
   margin-top: 20px;
   background: rgba(255, 255, 255, 0.56);
+}
+
+.mobile-games-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.mobile-games-toolbar strong {
+  font-size: 1.3rem;
+  margin-right: 6px;
 }
 
 .editor-head {
@@ -639,21 +674,129 @@ h4 {
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    width: min(100%, calc(100% - 12px));
+    padding: 12px 0 28px;
+  }
+
+  .hero-card,
+  .panel,
+  .editor-card,
+  .game-card,
+  .summary-card {
+    border-radius: 22px;
+  }
+
+  .hero-card,
+  .panel {
+    padding: 18px;
+  }
+
+  .hero-card {
+    gap: 16px;
+  }
+
+  .hero-text {
+    font-size: 0.96rem;
+    line-height: 1.5;
+  }
+
+  .hero-status {
+    padding: 16px;
+    gap: 10px;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+
+  .mobile-only-card {
+    display: block;
+  }
+
+  .desktop-only-action {
+    display: none;
+  }
+
+  .games-list,
+  .summary-cards {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(230px, 82vw);
+    grid-template-columns: none;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-inline: -4px;
+    padding-inline: 4px;
+    scroll-snap-type: x proximity;
+  }
+
+  .game-card,
+  .summary-card {
+    min-height: 100%;
+    scroll-snap-align: start;
+  }
+
+  .games-list::-webkit-scrollbar,
+  .summary-cards::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .games-list::-webkit-scrollbar-thumb,
+  .summary-cards::-webkit-scrollbar-thumb {
+    background: rgba(11, 143, 77, 0.22);
+    border-radius: 999px;
+  }
+
+  .mobile-games-toolbar {
+    position: sticky;
+    top: 10px;
+    z-index: 3;
+    backdrop-filter: blur(14px);
+  }
+
+  .editor-card {
+    padding: 16px;
+  }
+
+  .game-summary {
+    padding: 14px;
+    gap: 10px;
+  }
+
   .number-grid,
   .result-numbers {
     gap: 10px;
   }
 
+  .number-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
   .number-ball {
-    min-height: 54px;
+    min-height: 48px;
+    border-radius: 14px;
   }
 
   .result-ball {
-    min-height: 58px;
+    min-height: 54px;
+    border-radius: 16px;
   }
 
   .contest-form {
     flex-direction: column;
+  }
+
+  .contest-toolbar,
+  .contest-nav {
+    gap: 10px;
+  }
+
+  .contest-toolbar > .ghost-button,
+  .contest-nav > .ghost-button,
+  .contest-form .primary-button {
+    width: 100%;
+    justify-content: center;
   }
 
   .editor-actions {
@@ -668,5 +811,9 @@ h4 {
 
   h2 {
     font-size: 1.7rem;
+  }
+
+  h3 {
+    font-size: 2rem;
   }
 }

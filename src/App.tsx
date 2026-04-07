@@ -6,12 +6,18 @@ const LEGACY_GAME_STORAGE_KEY = 'lotofacil-fixed-game'
 const SELECTED_GAME_STORAGE_KEY = 'lotofacil-selected-game'
 const CHECK_STORAGE_KEY = 'lotofacil-last-check'
 const LOTTERY_NUMBERS = Array.from({ length: 25 }, (_, index) => index + 1)
+const FIXED_PRIZE_BY_HITS: Record<number, number> = {
+  11: 7,
+  12: 14,
+  13: 35,
+}
 
 type PrizeTier = {
   description: string
   hits: number
   winners: number
-  amount: number
+  amount: number | null
+  source?: 'draw' | 'rules' | 'unavailable'
 }
 
 type LotofacilResult = {
@@ -195,6 +201,62 @@ function formatDateTime(value: string) {
   }).format(new Date(value))
 }
 
+function getPrizeHeadline(prizeTier: PrizeTier | null, validGame: boolean) {
+  if (!validGame) {
+    return 'Sem faixa premiada'
+  }
+
+  if (!prizeTier) {
+    return 'Sem faixa premiada'
+  }
+
+  if (prizeTier.amount === null) {
+    return 'Faixa premiada'
+  }
+
+  return formatCurrency(prizeTier.amount)
+}
+
+function getPrizeDetails(prizeTier: PrizeTier | null, validGame: boolean) {
+  if (!validGame) {
+    return 'A Lotofacil paga de 11 a 15 acertos.'
+  }
+
+  if (!prizeTier) {
+    return 'A Lotofacil paga de 11 a 15 acertos.'
+  }
+
+  if (prizeTier.source === 'rules') {
+    return `${prizeTier.description} com premio fixo oficial da Lotofacil.`
+  }
+
+  if (prizeTier.source === 'unavailable') {
+    return `${prizeTier.description} premiado, mas o valor nao veio na fonte alternativa.`
+  }
+
+  return `${prizeTier.description} com ${prizeTier.winners} apostas ganhadoras`
+}
+
+function getSummaryPrizeText(summary: GameSummary) {
+  if (!summary.valid) {
+    return 'Complete 15 dezenas para entrar na conferencia'
+  }
+
+  if (!summary.prizeTier) {
+    return 'Sem premiacao neste concurso'
+  }
+
+  if (summary.prizeTier.amount === null) {
+    return `${summary.prizeTier.description} com valor indisponivel nesta fonte`
+  }
+
+  if (summary.prizeTier.source === 'rules') {
+    return `${summary.prizeTier.description} com premio fixo oficial de ${formatCurrency(summary.prizeTier.amount)}`
+  }
+
+  return `${summary.prizeTier.description} de ${formatCurrency(summary.prizeTier.amount)}`
+}
+
 function describeHitCount(hitCount: number) {
   if (hitCount >= 15) {
     return 'Cartela perfeita. Hora de separar o comprovante.'
@@ -215,14 +277,43 @@ function buildGameSummary(game: SavedGame, result: LotofacilResult | null): Game
   const drawnNumbers = new Set(result?.drawnNumbers ?? [])
   const matchedNumbers = game.numbers.filter((value) => drawnNumbers.has(value))
   const missedNumbers = game.numbers.filter((value) => !drawnNumbers.has(value))
+  const matchedHits = matchedNumbers.length
+  const prizeTierFromResult =
+    result?.prizeTiers.find((tier) => tier.hits === matchedHits) ?? null
+
+  let prizeTier: PrizeTier | null = prizeTierFromResult
+    ? {
+        ...prizeTierFromResult,
+        source: 'draw' as const,
+      }
+    : null
+
+  if (!prizeTier && FIXED_PRIZE_BY_HITS[matchedHits]) {
+    prizeTier = {
+      description: `${matchedHits} acertos`,
+      hits: matchedHits,
+      winners: 0,
+      amount: FIXED_PRIZE_BY_HITS[matchedHits],
+      source: 'rules',
+    }
+  }
+
+  if (!prizeTier && matchedHits >= 14) {
+    prizeTier = {
+      description: `${matchedHits} acertos`,
+      hits: matchedHits,
+      winners: 0,
+      amount: null,
+      source: 'unavailable',
+    }
+  }
 
   return {
     game,
     valid: game.numbers.length === 15,
     matchedNumbers,
     missedNumbers,
-    prizeTier:
-      result?.prizeTiers.find((tier) => tier.hits === matchedNumbers.length) ?? null,
+    prizeTier,
   }
 }
 
@@ -543,8 +634,22 @@ export default function App() {
               <p className="panel-label">Seus jogos</p>
               <h2>Monte uma carteira de apostas</h2>
             </div>
-            <button className="ghost-button" type="button" onClick={handleAddGame}>
+            <button
+              className="ghost-button desktop-only-action"
+              type="button"
+              onClick={handleAddGame}
+            >
               Adicionar jogo
+            </button>
+          </div>
+
+          <div className="mobile-games-toolbar mobile-only">
+            <div>
+              <strong>{games.length}</strong>
+              <span>{games.length === 1 ? ' jogo salvo' : ' jogos salvos'}</span>
+            </div>
+            <button className="primary-button" type="button" onClick={handleAddGame}>
+              Novo jogo
             </button>
           </div>
 
@@ -571,6 +676,18 @@ export default function App() {
                 </button>
               )
             })}
+
+            <button
+              type="button"
+              className="game-card add-game-card mobile-only-card"
+              onClick={handleAddGame}
+            >
+              <div className="game-card-header">
+                <strong>Novo jogo</strong>
+                <span>+</span>
+              </div>
+              <p>Crie outra aposta sem subir ate o topo da pagina.</p>
+            </button>
           </div>
 
           {activeGame ? (
@@ -751,15 +868,9 @@ export default function App() {
                     <div className="prize-card">
                       <span>Premiacao do jogo ativo</span>
                       <strong>
-                        {activeSummary.valid && activeSummary.prizeTier
-                          ? formatCurrency(activeSummary.prizeTier.amount)
-                          : 'Sem faixa premiada'}
+                        {getPrizeHeadline(activeSummary.prizeTier, activeSummary.valid)}
                       </strong>
-                      <small>
-                        {activeSummary.valid && activeSummary.prizeTier
-                          ? `${activeSummary.prizeTier.description} com ${activeSummary.prizeTier.winners} apostas ganhadoras`
-                          : 'A Lotofacil paga de 11 a 15 acertos.'}
-                      </small>
+                      <small>{getPrizeDetails(activeSummary.prizeTier, activeSummary.valid)}</small>
                     </div>
                   </div>
 
@@ -818,13 +929,7 @@ export default function App() {
                           ? `${summary.matchedNumbers.length} acertos`
                           : 'Jogo incompleto'}
                       </h4>
-                      <p>
-                        {summary.valid && summary.prizeTier
-                          ? `${summary.prizeTier.description} de ${formatCurrency(summary.prizeTier.amount)}`
-                          : summary.valid
-                            ? 'Sem premiacao neste concurso'
-                            : 'Complete 15 dezenas para entrar na conferencia'}
-                      </p>
+                      <p>{getSummaryPrizeText(summary)}</p>
                       <div className="chips mini">
                         {summary.game.numbers.length > 0 ? (
                           summary.game.numbers.map((value) => (
